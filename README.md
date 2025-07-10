@@ -1,4 +1,4 @@
-# twilight-line-v2
+# twilight-line-v2-rust
 another tunnel proxy
 
 ## what's new in v2
