@@ -5,6 +5,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 use tl_common::Result;
+use tl_common::TlConnectionType;
 
 type Aes256CfbEncoder = cfb_mode::BufEncryptor<aes::Aes256>;
 type Aes256CfbDecoder = cfb_mode::BufDecryptor<aes::Aes256>;
@@ -86,7 +87,11 @@ impl TlClient {
         Ok(())
     }
 
-    pub async fn connect(&mut self, dst_addr: &str) -> Result<()> {
+    pub async fn connect(
+        &mut self,
+        conn_type: TlConnectionType,
+        dst_addr: &str,
+    ) -> Result<()> {
         // write fake request
         self.conn.write_all(self.fake_request).await?;
 
@@ -94,8 +99,10 @@ impl TlClient {
         {
             let mut buf: Vec<u8> = Vec::with_capacity(2048);
             let sign: Vec<u8> = tl_common::util::sha256_sum(
-                format!("{}{}", dst_addr, self.sec_key).as_bytes(),
+                format!("{}{}{}", conn_type as u8, dst_addr, self.sec_key)
+                    .as_bytes(),
             );
+            buf.put_u8(conn_type as u8);
             buf.put_u16(dst_addr.len() as u16);
             buf.put(dst_addr.as_bytes());
             buf.put(sign.as_slice());

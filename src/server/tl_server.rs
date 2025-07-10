@@ -6,6 +6,7 @@ use tokio::net::TcpStream;
 
 use crate::server_error::ServerError;
 use tl_common::Result;
+use tl_common::TlConnectionType;
 
 type Aes256CfbEncoder = cfb_mode::BufEncryptor<aes::Aes256>;
 type Aes256CfbDecoder = cfb_mode::BufDecryptor<aes::Aes256>;
@@ -109,6 +110,17 @@ impl TlServer {
 
         let mut buf: Vec<u8> = vec![0; 512];
 
+        // read conn type
+        let b = &mut buf[..1];
+        self.read_exact(b).await?;
+        let conn_type = match b[0] {
+            0x01 => TlConnectionType::Tcp,
+            0x02 => TlConnectionType::Udp,
+            _ => {
+                return Err(Box::new(ServerError::TlRequestAddrInvalid));
+            }
+        };
+
         // read request addr
         let b = &mut buf[..2];
         self.read_exact(b).await?;
@@ -120,11 +132,11 @@ impl TlServer {
         let b = &mut buf[..addr_len];
         self.read_exact(b).await?;
         let addr = String::from_utf8(b.to_vec())?;
-        let sign: Vec<u8> = tl_common::util::sha256_sum(
-            format!("{}{}", addr, self.sec_key).as_bytes(),
-        );
 
         // check addr sign
+        let sign: Vec<u8> = tl_common::util::sha256_sum(
+            format!("{}{}{}", conn_type as u8, addr, self.sec_key).as_bytes(),
+        );
         let b = &mut buf[..32];
         self.read_exact(b).await?;
         if b != sign.as_slice() {

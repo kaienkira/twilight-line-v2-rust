@@ -8,6 +8,7 @@ use crate::socks5_server::Socks5Request;
 use crate::socks5_server::Socks5Server;
 use crate::tl_client::TlClient;
 use tl_common::Result;
+use tl_common::TlConnectionType;
 
 pub(crate) async fn handle_proxy(config: &'static Config) -> Result<()> {
     let listener = TcpListener::bind(&config.local_addr).await?;
@@ -63,7 +64,7 @@ async fn proxy_tcp(
         config.fake_request.as_bytes(),
         config.fake_response.as_bytes(),
     );
-    c.connect(&req.dst_addr).await?;
+    c.connect(TlConnectionType::Tcp, &req.dst_addr).await?;
 
     s.notify_connect_success().await?;
 
