@@ -3,6 +3,8 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
 use crate::Config;
+use crate::socks5_server::Socks5Cmd;
+use crate::socks5_server::Socks5Request;
 use crate::socks5_server::Socks5Server;
 use crate::tl_client::TlClient;
 use tl_common::Result;
@@ -29,9 +31,22 @@ async fn proxy(
 ) -> Result<()> {
     let mut s = Socks5Server::new(client_conn);
     s.method_select().await?;
-    let dst_addr = s.receive_dst_addr().await?;
+    let req = s.receive_request().await?;
+    match req.cmd {
+        Socks5Cmd::Connect => {
+            return proxy_tcp(client_addr, config, s, req).await;
+        }
+        Socks5Cmd::UdpAssociate => Ok(()),
+    }
+}
 
-    println!("proxy_request: [{}] => [{}]", client_addr, dst_addr);
+async fn proxy_tcp(
+    client_addr: SocketAddr,
+    config: &'static Config,
+    mut s: Socks5Server,
+    req: Socks5Request,
+) -> Result<()> {
+    println!("proxy_tcp_request: [{}] => [{}]", client_addr, req.dst_addr);
 
     let server_conn: TcpStream;
     match TcpStream::connect(&config.server_addr).await {
@@ -48,7 +63,7 @@ async fn proxy(
         config.fake_request.as_bytes(),
         config.fake_response.as_bytes(),
     );
-    c.connect(&dst_addr).await?;
+    c.connect(&req.dst_addr).await?;
 
     s.notify_connect_success().await?;
 
@@ -56,14 +71,14 @@ async fn proxy(
     loop {
         tokio::select! {
             _ = c.wait_readable() => {
-                let ret = copy_data_c2s(
+                let ret = tcp_copy_data_c2s(
                     &mut c, &mut s, copy_buf.as_mut_slice()).await?;
                 if ret == false {
                     break;
                 }
             }
             _ = s.wait_readable() => {
-                let ret = copy_data_s2c(
+                let ret = tcp_copy_data_s2c(
                     &mut s, &mut c, copy_buf.as_mut_slice()).await?;
                 if ret == false {
                     break;
@@ -75,7 +90,7 @@ async fn proxy(
     Ok(())
 }
 
-async fn copy_data_c2s(
+async fn tcp_copy_data_c2s(
     c: &mut TlClient,
     s: &mut Socks5Server,
     buf: &mut [u8],
@@ -101,7 +116,7 @@ async fn copy_data_c2s(
     }
 }
 
-async fn copy_data_s2c(
+async fn tcp_copy_data_s2c(
     s: &mut Socks5Server,
     c: &mut TlClient,
     buf: &mut [u8],

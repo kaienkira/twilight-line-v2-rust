@@ -5,6 +5,18 @@ use tokio::net::TcpStream;
 use crate::client_error::ClientError;
 use tl_common::Result;
 
+pub(crate) enum Socks5Cmd {
+    Connect,
+    UdpAssociate,
+}
+
+///////////////////////////////////////////////////////////////////////////////
+pub(crate) struct Socks5Request {
+    pub cmd: Socks5Cmd,
+    pub dst_addr: String,
+}
+
+///////////////////////////////////////////////////////////////////////////////
 pub(crate) struct Socks5Server {
     conn: TcpStream,
 }
@@ -52,7 +64,7 @@ impl Socks5Server {
         Ok(())
     }
 
-    pub async fn receive_dst_addr(&mut self) -> Result<String> {
+    pub async fn receive_request(&mut self) -> Result<Socks5Request> {
         let mut buf: Vec<u8> = vec![0; 256];
 
         let b = &mut buf[..4];
@@ -66,37 +78,45 @@ impl Socks5Server {
         if version != 0x05 {
             return Err(Box::new(ClientError::Socks5VersionInvalid));
         }
-        // only support connect command
-        if cmd != 0x01 {
-            return Err(Box::new(ClientError::Socks5CmdNotSupported));
-        }
+        // get cmd
+        let socks5_cmd = match cmd {
+            0x01 => Socks5Cmd::Connect,
+            0x03 => Socks5Cmd::UdpAssociate,
+            _ => return Err(Box::new(ClientError::Socks5CmdNotSupported)),
+        };
+        // get dst addr
+        let socks5_dst_addr = match addr_type {
+            0x01 => {
+                // ipv4
+                let b = &mut buf[..6];
+                self.conn.read_exact(b).await?;
+                let port: u16 = ((b[4] as u16) << 8) + b[5] as u16;
 
-        if addr_type == 0x01 {
-            // ipv4
-            let b = &mut buf[..6];
-            self.conn.read_exact(b).await?;
+                format!("{}.{}.{}.{}:{}", b[0], b[1], b[2], b[3], port)
+            }
+            0x03 => {
+                // domain
+                let b = &mut buf[..1];
+                self.conn.read_exact(b).await?;
+                let domain_length = b[0] as usize;
 
-            let port: u16 = ((b[4] as u16) << 8) + b[5] as u16;
-            let addr = format!("{}.{}.{}.{}:{}", b[0], b[1], b[2], b[3], port);
+                let b = &mut buf[..(domain_length + 2)];
+                self.conn.read_exact(b).await?;
+                let domain = std::str::from_utf8(&b[..domain_length])?;
+                let port: u16 = ((b[domain_length] as u16) << 8)
+                    + b[domain_length + 1] as u16;
 
-            return Ok(addr);
-        } else if addr_type == 0x03 {
-            // domain
-            let b = &mut buf[..1];
-            self.conn.read_exact(b).await?;
-            let domain_length = b[0] as usize;
+                format!("{}:{}", domain, port)
+            }
+            _ => {
+                return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
+            }
+        };
 
-            let b = &mut buf[..(domain_length + 2)];
-            self.conn.read_exact(b).await?;
-            let domain = std::str::from_utf8(&b[..domain_length])?;
-            let port: u16 =
-                ((b[domain_length] as u16) << 8) + b[domain_length + 1] as u16;
-            let addr = format!("{}:{}", domain, port);
-
-            return Ok(addr);
-        } else {
-            return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
-        }
+        Ok(Socks5Request {
+            cmd: socks5_cmd,
+            dst_addr: socks5_dst_addr,
+        })
     }
 
     pub async fn notify_connect_success(&mut self) -> Result<()> {
