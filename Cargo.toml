@@ -1,0 +1,33 @@
+[package]
+name = "twilight-line-v2-rust"
+description = "another tunnel proxy"
+authors = ["kaien <kaienkira@gmail.com>"]
+version = "1.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+aes = { version = "0.8.4" }
+bytes = { version = "1.10.1" }
+cfb-mode = { version = "0.8.2" }
+clap = { version = "4.5.40", features = ["derive"] }
+rand = { version = "0.9.1" }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140" }
+sha2 = { version = "0.10.9" }
+tokio = { version = "1.46.0", features = ["full"] }
+
+[dev-dependencies]
+hex = { version = "0.4.3" }
+
+[lib]
+name = "tl_common"
+path = "src/common/lib.rs"
+
+[[bin]]
+name = "twilight-line-rust-client"
+path = "src/client/main.rs"
+
+[[bin]]
+name = "twilight-line-rust-server"
+path = "src/server/main.rs"
