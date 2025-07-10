@@ -5,14 +5,14 @@ use tokio::net::TcpStream;
 use crate::client_error::ClientError;
 use tl_common::Result;
 
-pub(crate) enum Socks5Cmd {
+pub(crate) enum Socks5CmdType {
     Connect,
     UdpAssociate,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 pub(crate) struct Socks5Request {
-    pub cmd: Socks5Cmd,
+    pub cmd: Socks5CmdType,
     pub dst_addr: String,
 }
 
@@ -80,8 +80,8 @@ impl Socks5Server {
         }
         // get cmd
         let socks5_cmd = match cmd {
-            0x01 => Socks5Cmd::Connect,
-            0x03 => Socks5Cmd::UdpAssociate,
+            0x01 => Socks5CmdType::Connect,
+            0x03 => Socks5CmdType::UdpAssociate,
             _ => return Err(Box::new(ClientError::Socks5CmdNotSupported)),
         };
         // get dst addr

@@ -3,7 +3,7 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
 use crate::Config;
-use crate::socks5_server::Socks5Cmd;
+use crate::socks5_server::Socks5CmdType;
 use crate::socks5_server::Socks5Request;
 use crate::socks5_server::Socks5Server;
 use crate::tl_client::TlClient;
@@ -33,10 +33,10 @@ async fn proxy(
     s.method_select().await?;
     let req = s.receive_request().await?;
     match req.cmd {
-        Socks5Cmd::Connect => {
+        Socks5CmdType::Connect => {
             return proxy_tcp(client_addr, config, s, req).await;
         }
-        Socks5Cmd::UdpAssociate => Ok(()),
+        Socks5CmdType::UdpAssociate => Ok(()),
     }
 }
 
