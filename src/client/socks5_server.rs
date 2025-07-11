@@ -5,7 +5,6 @@ use tokio::net::TcpStream;
 use crate::client_error::ClientError;
 use tl_common::Result;
 
-///////////////////////////////////////////////////////////////////////////////
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Socks5CmdType {

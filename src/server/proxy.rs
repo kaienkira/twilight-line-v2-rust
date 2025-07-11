@@ -1,8 +1,10 @@
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
 use crate::Config;
+use crate::remote_client::RemoteClient;
+use crate::remote_client::RemoteTcpClient;
+use crate::remote_client::RemoteUdpClient;
 use crate::tl_server::TlServer;
 use tl_common::Result;
 
@@ -29,20 +31,26 @@ async fn proxy(client_conn: TcpStream, config: &'static Config) -> Result<()> {
         config.fake_response.as_bytes(),
     );
 
-    let mut c = s.accept().await?;
+    let c = s.accept().await?;
+    match c {
+        RemoteClient::Tcp(c) => proxy_tcp(c, s).await,
+        RemoteClient::Udp(c) => proxy_udp(c, s).await,
+    }
+}
 
+async fn proxy_tcp(mut c: RemoteTcpClient, mut s: TlServer) -> Result<()> {
     let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
     loop {
         tokio::select! {
-            _ = c.readable() => {
-                let ret = copy_data_c2s(
+            _ = c.wait_readable() => {
+                let ret = tcp_copy_data_c2s(
                     &mut c, &mut s, copy_buf.as_mut_slice()).await?;
                 if ret == false {
                     break;
                 }
             }
             _ = s.wait_readable() => {
-                let ret = copy_data_s2c(
+                let ret = tcp_copy_data_s2c(
                     &mut s, &mut c, copy_buf.as_mut_slice()).await?;
                 if ret == false {
                     break;
@@ -54,8 +62,8 @@ async fn proxy(client_conn: TcpStream, config: &'static Config) -> Result<()> {
     Ok(())
 }
 
-async fn copy_data_c2s(
-    c: &mut TcpStream,
+async fn tcp_copy_data_c2s(
+    c: &mut RemoteTcpClient,
     s: &mut TlServer,
     buf: &mut [u8],
 ) -> Result<bool> {
@@ -68,8 +76,10 @@ async fn copy_data_c2s(
                 s.write_all(&buf[..n]).await?;
             }
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {
-                    return Ok(true);
+                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                    if io_error.kind() == std::io::ErrorKind::WouldBlock {
+                        return Ok(true);
+                    }
                 } else {
                     return Err(e.into());
                 }
@@ -78,9 +88,9 @@ async fn copy_data_c2s(
     }
 }
 
-async fn copy_data_s2c(
+async fn tcp_copy_data_s2c(
     s: &mut TlServer,
-    c: &mut TcpStream,
+    c: &mut RemoteTcpClient,
     buf: &mut [u8],
 ) -> Result<bool> {
     loop {
@@ -102,4 +112,8 @@ async fn copy_data_s2c(
             }
         }
     }
+}
+
+async fn proxy_udp(c: RemoteUdpClient, s: TlServer) -> Result<()> {
+    Ok(())
 }

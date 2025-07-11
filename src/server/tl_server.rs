@@ -4,6 +4,9 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+use crate::remote_client::RemoteClient;
+use crate::remote_client::RemoteTcpClient;
+use crate::remote_client::RemoteUdpClient;
 use crate::server_error::ServerError;
 use tl_common::Result;
 use tl_common::TlConnectionType;
@@ -88,7 +91,7 @@ impl TlServer {
         Ok(())
     }
 
-    pub async fn accept(&mut self) -> Result<TcpStream> {
+    pub async fn accept(&mut self) -> Result<RemoteClient> {
         // read fake request
         {
             let mut buf: Vec<u8> = vec![0; self.fake_request.len()];
@@ -143,8 +146,15 @@ impl TlServer {
             return Err(Box::new(ServerError::TlRequestAddrInvalid));
         }
 
-        // connect to request addr
-        let conn: TcpStream = TcpStream::connect(addr).await?;
+        // build remote client
+        let conn = match conn_type {
+            TlConnectionType::Tcp => {
+                RemoteClient::Tcp(RemoteTcpClient::build(addr).await?)
+            }
+            TlConnectionType::Udp => {
+                RemoteClient::Udp(RemoteUdpClient::build(addr).await?)
+            }
+        };
 
         // create communication key
         let comm_key_len = 32 + rand::random_range(0..128 - 32);

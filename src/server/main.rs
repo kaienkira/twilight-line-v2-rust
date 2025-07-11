@@ -6,6 +6,7 @@ use clap::Parser as ClapParser;
 use std::sync::LazyLock;
 
 mod proxy;
+mod remote_client;
 mod server_error;
 mod tl_server;
 
