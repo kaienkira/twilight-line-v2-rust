@@ -149,7 +149,7 @@ async fn proxy_udp(
     config: &'static Config,
     mut s: Socks5Server,
 ) -> Result<()> {
-    println!("proxy_udp_request: [{}]", client_addr);
+    println!("start_udp_proxy: [{}]", client_addr);
 
     let mut u = Socks5UdpServer::build(&config.local_udp_addr).await?;
     let udp_port = u.local_addr()?.port();
@@ -221,7 +221,7 @@ async fn udp_copy_data_u2c(
     buf: &mut [u8],
 ) -> Result<()> {
     loop {
-        match u.try_recv(buf) {
+        match u.try_read(buf) {
             Ok(n) => {
                 if n == 0 {
                     return Ok(());

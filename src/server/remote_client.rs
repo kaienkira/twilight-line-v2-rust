@@ -51,12 +51,11 @@ impl RemoteUdpClient {
         Ok(())
     }
 
-    pub fn try_recv(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub fn try_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         Ok(self.conn.try_recv(buf)?)
     }
 
-    pub async fn send_to(&mut self, buf: &[u8], addr: &str) -> Result<()> {
-        self.conn.send_to(buf, addr).await?;
+    pub async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
         Ok(())
     }
 }

@@ -164,8 +164,8 @@ impl Socks5UdpServer {
         Ok(())
     }
 
-    pub fn try_recv(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let mut buf_left_bytes = self.conn.try_recv(buf)?;
+    pub fn try_read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let (mut buf_left_bytes, src_addr) = self.conn.try_recv_from(buf)?;
         let mut buf_index: usize = 0;
 
         let b =
@@ -217,7 +217,12 @@ impl Socks5UdpServer {
         }
         let data = buf[buf_index..(buf_index + buf_left_bytes)].to_vec();
 
-        println!("udp package: ({}) => [{}]", data.len(), dst_addr);
+        println!(
+            "proxy_udp_request: [{}] => [{}] ({})",
+            src_addr,
+            dst_addr,
+            data.len()
+        );
 
         let n = 1 + dst_addr.len() + 2 + data.len();
         let mut new_buf: Vec<u8> = Vec::with_capacity(n);
