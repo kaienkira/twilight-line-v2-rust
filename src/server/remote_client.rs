@@ -15,12 +15,12 @@ pub(crate) struct RemoteTcpClient {
 }
 
 impl RemoteTcpClient {
-    pub async fn build(addr: String) -> Result<RemoteTcpClient> {
+    pub async fn build(addr: &str) -> Result<RemoteTcpClient> {
         let conn = TcpStream::connect(addr).await?;
         Ok(RemoteTcpClient { conn: conn })
     }
 
-    pub async fn wait_readable(&mut self) -> Result<()> {
+    pub async fn readable(&mut self) -> Result<()> {
         self.conn.readable().await?;
         Ok(())
     }
@@ -41,23 +41,22 @@ pub(crate) struct RemoteUdpClient {
 }
 
 impl RemoteUdpClient {
-    pub async fn build(addr: String) -> Result<RemoteUdpClient> {
+    pub async fn build() -> Result<RemoteUdpClient> {
         let conn = UdpSocket::bind("0.0.0.0:0").await?;
-        conn.connect(addr).await?;
         Ok(RemoteUdpClient { conn: conn })
     }
 
-    pub async fn wait_readable(&mut self) -> Result<()> {
+    pub async fn readable(&mut self) -> Result<()> {
         self.conn.readable().await?;
         Ok(())
     }
 
-    pub fn try_read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub fn try_recv(&mut self, buf: &mut [u8]) -> Result<usize> {
         Ok(self.conn.try_recv(buf)?)
     }
 
-    pub async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
-        self.conn.send(buf).await?;
+    pub async fn send_to(&mut self, buf: &[u8], addr: &str) -> Result<()> {
+        self.conn.send_to(buf, addr).await?;
         Ok(())
     }
 }

@@ -59,7 +59,7 @@ impl TlServer {
         (encoder, decoder)
     }
 
-    pub async fn wait_readable(&mut self) -> Result<()> {
+    pub async fn readable(&mut self) -> Result<()> {
         self.conn.readable().await?;
         Ok(())
     }
@@ -149,10 +149,10 @@ impl TlServer {
         // build remote client
         let conn = match conn_type {
             TlConnectionType::Tcp => {
-                RemoteClient::Tcp(RemoteTcpClient::build(addr).await?)
+                RemoteClient::Tcp(RemoteTcpClient::build(&addr).await?)
             }
             TlConnectionType::Udp => {
-                RemoteClient::Udp(RemoteUdpClient::build(addr).await?)
+                RemoteClient::Udp(RemoteUdpClient::build().await?)
             }
         };
 

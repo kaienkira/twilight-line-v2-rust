@@ -1,6 +1,8 @@
+use core::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use tokio::net::UdpSocket;
 
 use crate::client_error::ClientError;
 use tl_common::Result;
@@ -28,7 +30,7 @@ impl Socks5Server {
         Socks5Server { conn: conn }
     }
 
-    pub async fn wait_readable(&mut self) -> Result<()> {
+    pub async fn readable(&mut self) -> Result<()> {
         self.conn.readable().await?;
         Ok(())
     }
@@ -129,5 +131,36 @@ impl Socks5Server {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn notify_udp_associate_success(
+        &mut self,
+        port: u16,
+    ) -> Result<()> {
+        let b0 = port as u8;
+        let b1 = (port >> 8) as u8;
+
+        self.conn
+            .write_all(&[
+                0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, b1, b0,
+            ])
+            .await?;
+        Ok(())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+pub(crate) struct Socks5UdpServer {
+    conn: UdpSocket,
+}
+
+impl Socks5UdpServer {
+    pub async fn build(host: &str) -> Result<Socks5UdpServer> {
+        let conn = UdpSocket::bind(host).await?;
+        Ok(Socks5UdpServer { conn: conn })
+    }
+
+    pub fn local_addr(&self) -> Result<SocketAddr> {
+        Ok(self.conn.local_addr()?)
     }
 }

@@ -55,7 +55,7 @@ impl TlClient {
         (encoder, decoder)
     }
 
-    pub async fn wait_readable(&mut self) -> Result<()> {
+    pub async fn readable(&mut self) -> Result<()> {
         self.conn.readable().await?;
         Ok(())
     }

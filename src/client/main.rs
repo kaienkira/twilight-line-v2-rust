@@ -1,4 +1,5 @@
 use clap::Parser as ClapParser;
+use regex::Regex;
 use std::sync::LazyLock;
 
 mod client_error;
@@ -8,6 +9,7 @@ mod tl_client;
 
 struct Config {
     local_addr: String,
+    local_udp_addr: String,
     server_addr: String,
     sec_key: String,
     fake_request: String,
@@ -97,6 +99,7 @@ fn parse_config() -> Config {
     }
 
     let mut check_opt_result = true;
+    let mut local_udp_addr: Option<String> = None;
     loop {
         if opt_local_addr.is_none() {
             check_opt_result = false;
@@ -108,6 +111,16 @@ fn parse_config() -> Config {
             eprintln!("config.serverAddr is required");
             break;
         }
+
+        let re = Regex::new(r"(.+):(\d+)").unwrap();
+        if let Some(caps) = re.captures(opt_local_addr.as_ref().unwrap()) {
+            local_udp_addr = Some(format!("{}:0", caps[1].to_string()));
+        } else {
+            check_opt_result = false;
+            eprintln!("config.localAddr is invalid");
+            break;
+        }
+
         break;
     }
     if check_opt_result == false {
@@ -117,6 +130,7 @@ fn parse_config() -> Config {
 
     Config {
         local_addr: opt_local_addr.unwrap(),
+        local_udp_addr: local_udp_addr.unwrap(),
         server_addr: opt_server_addr.unwrap(),
         sec_key: opt_sec_key.unwrap_or(String::new()),
         fake_request: opt_fake_request.unwrap_or(String::new()),

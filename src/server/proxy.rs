@@ -38,18 +38,19 @@ async fn proxy(client_conn: TcpStream, config: &'static Config) -> Result<()> {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
 async fn proxy_tcp(mut c: RemoteTcpClient, mut s: TlServer) -> Result<()> {
     let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
     loop {
         tokio::select! {
-            _ = c.wait_readable() => {
+            _ = c.readable() => {
                 let ret = tcp_copy_data_c2s(
                     &mut c, &mut s, copy_buf.as_mut_slice()).await?;
                 if ret == false {
                     break;
                 }
             }
-            _ = s.wait_readable() => {
+            _ = s.readable() => {
                 let ret = tcp_copy_data_s2c(
                     &mut s, &mut c, copy_buf.as_mut_slice()).await?;
                 if ret == false {
@@ -114,6 +115,7 @@ async fn tcp_copy_data_s2c(
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
 async fn proxy_udp(c: RemoteUdpClient, s: TlServer) -> Result<()> {
     Ok(())
 }
