@@ -7,6 +7,7 @@ pub(crate) enum ClientError {
     Socks5VersionInvalid,
     Socks5CmdNotSupported,
     Socks5AddrTypeNotSupported,
+    Socks5UdpDataInvalid,
 }
 
 impl ClientError {
@@ -16,6 +17,7 @@ impl ClientError {
             Socks5VersionInvalid => "socks5 version invalid",
             Socks5CmdNotSupported => "socks5 cmd not supported",
             Socks5AddrTypeNotSupported => "socks5 addr type not supported",
+            Socks5UdpDataInvalid => "socks5 udp data invalid",
         }
     }
 }

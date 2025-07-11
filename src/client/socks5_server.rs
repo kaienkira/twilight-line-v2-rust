@@ -1,3 +1,4 @@
+use bytes::BufMut;
 use core::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -94,9 +95,7 @@ impl Socks5Server {
                 // ipv4
                 let b = &mut buf[..6];
                 self.conn.read_exact(b).await?;
-                let port: u16 = ((b[4] as u16) << 8) + b[5] as u16;
-
-                format!("{}.{}.{}.{}:{}", b[0], b[1], b[2], b[3], port)
+                socks5_convert_ipv4_addr(b)
             }
             0x03 => {
                 // domain
@@ -106,11 +105,7 @@ impl Socks5Server {
 
                 let b = &mut buf[..(domain_length + 2)];
                 self.conn.read_exact(b).await?;
-                let domain = std::str::from_utf8(&b[..domain_length])?;
-                let port: u16 = ((b[domain_length] as u16) << 8)
-                    + b[domain_length + 1] as u16;
-
-                format!("{}:{}", domain, port)
+                socks5_convert_domain_addr(b)?
             }
             _ => {
                 return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
@@ -163,4 +158,105 @@ impl Socks5UdpServer {
     pub fn local_addr(&self) -> Result<SocketAddr> {
         Ok(self.conn.local_addr()?)
     }
+
+    pub async fn readable(&mut self) -> Result<()> {
+        self.conn.readable().await?;
+        Ok(())
+    }
+
+    pub fn try_recv(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let mut buf_left_bytes = self.conn.try_recv(buf)?;
+        let mut buf_index: usize = 0;
+
+        let b =
+            socks5_udp_read_buf(buf, &mut buf_left_bytes, &mut buf_index, 4)?;
+        let frag = b[2];
+        let addr_type = b[3];
+
+        // check frag
+        if frag != 0x00 {
+            // drop frag udp package
+            return Ok(0);
+        }
+        // get dst addr
+        let dst_addr = match addr_type {
+            0x01 => {
+                let b = socks5_udp_read_buf(
+                    buf,
+                    &mut buf_left_bytes,
+                    &mut buf_index,
+                    6,
+                )?;
+                socks5_convert_ipv4_addr(b)
+            }
+            0x03 => {
+                let b = socks5_udp_read_buf(
+                    buf,
+                    &mut buf_left_bytes,
+                    &mut buf_index,
+                    1,
+                )?;
+                let domain_length = b[0] as usize;
+                let b = socks5_udp_read_buf(
+                    buf,
+                    &mut buf_left_bytes,
+                    &mut buf_index,
+                    domain_length + 2,
+                )?;
+                socks5_convert_domain_addr(b)?
+            }
+            _ => {
+                return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
+            }
+        };
+
+        // get data
+        if buf_left_bytes == 0 {
+            // drop
+            return Ok(0);
+        }
+        let data = buf[buf_index..(buf_index + buf_left_bytes)].to_vec();
+
+        println!("udp package: ({}) => [{}]", data.len(), dst_addr);
+
+        let n = 1 + dst_addr.len() + 2 + data.len();
+        let mut new_buf: Vec<u8> = Vec::with_capacity(n);
+        new_buf.put_u8(dst_addr.len() as u8);
+        new_buf.put(dst_addr.as_bytes());
+        new_buf.put_u16(data.len() as u16);
+        new_buf.put(data.as_slice());
+        buf[..n].copy_from_slice(new_buf.as_slice());
+
+        Ok(n)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+fn socks5_udp_read_buf<'a>(
+    buf: &'a [u8],
+    buf_left_bytes: &mut usize,
+    buf_index: &mut usize,
+    n: usize,
+) -> Result<&'a [u8]> {
+    if *buf_left_bytes < n {
+        return Err(Box::new(ClientError::Socks5UdpDataInvalid));
+    }
+
+    let b = &buf[*buf_index..(*buf_index + n)];
+    *buf_left_bytes -= n;
+    *buf_index += n;
+
+    Ok(b)
+}
+
+fn socks5_convert_ipv4_addr(b: &[u8]) -> String {
+    let port: u16 = ((b[4] as u16) << 8) + b[5] as u16;
+    format!("{}.{}.{}.{}:{}", b[0], b[1], b[2], b[3], port)
+}
+
+fn socks5_convert_domain_addr(b: &[u8]) -> Result<String> {
+    let n = b.len();
+    let domain = std::str::from_utf8(&b[..(n - 2)])?;
+    let port: u16 = ((b[n - 2] as u16) << 8) + b[n - 1] as u16;
+    Ok(format!("{}:{}", domain, port))
 }

@@ -151,7 +151,7 @@ async fn proxy_udp(
 ) -> Result<()> {
     println!("proxy_udp_request: [{}]", client_addr);
 
-    let u = Socks5UdpServer::build(&config.local_udp_addr).await?;
+    let mut u = Socks5UdpServer::build(&config.local_udp_addr).await?;
     let udp_port = u.local_addr()?.port();
 
     let server_conn: TcpStream;
@@ -182,6 +182,9 @@ async fn proxy_udp(
                     break;
                 }
             }
+            _ = u.readable() => {
+                udp_copy_data_u2c(&mut u, &mut c, copy_buf.as_mut_slice()).await?;
+            }
         }
     }
 
@@ -203,6 +206,33 @@ fn udp_check_tcp_ctl_close(
                 if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
                         return Ok(false);
+                    }
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
+    }
+}
+
+async fn udp_copy_data_u2c(
+    u: &mut Socks5UdpServer,
+    c: &mut TlClient,
+    buf: &mut [u8],
+) -> Result<()> {
+    loop {
+        match u.try_recv(buf) {
+            Ok(n) => {
+                if n == 0 {
+                    return Ok(());
+                } else {
+                    c.write_all(&buf[..n]).await?;
+                }
+            }
+            Err(e) => {
+                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                    if io_error.kind() == std::io::ErrorKind::WouldBlock {
+                        return Ok(());
                     }
                 } else {
                     return Err(e.into());
