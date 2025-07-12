@@ -96,12 +96,6 @@ impl Socks5Server {
                 self.conn.read_exact(b).await?;
                 socks5_convert_ipv4_addr(b)
             }
-            0x02 => {
-                // ipv6
-                let b = &mut buf[..18];
-                self.conn.read_exact(b).await?;
-                socks5_convert_ipv6_addr(b)
-            }
             0x03 => {
                 // domain
                 let b = &mut buf[..1];
@@ -111,6 +105,12 @@ impl Socks5Server {
                 let b = &mut buf[..(domain_length + 2)];
                 self.conn.read_exact(b).await?;
                 socks5_convert_domain_addr(b)?
+            }
+            0x04 => {
+                // ipv6
+                let b = &mut buf[..18];
+                self.conn.read_exact(b).await?;
+                socks5_convert_ipv6_addr(b)
             }
             _ => {
                 return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
@@ -202,6 +202,15 @@ impl Socks5UdpServer {
                     6,
                 )?;
                 socks5_convert_ipv4_addr(b)
+            }
+            0x04 => {
+                let b = socks5_udp_read_buf(
+                    buf,
+                    &mut buf_left_bytes,
+                    &mut buf_index,
+                    18,
+                )?;
+                socks5_convert_ipv6_addr(b)
             }
             _ => {
                 return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
@@ -321,14 +330,14 @@ fn socks5_convert_ipv6_addr(b: &[u8]) -> String {
     format!(
         concat!(
             "[",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}:",
-            "{:x}{:02x}",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}:",
+            "{:02x}{:02x}",
             "]:{}"
         ),
         b[0],
