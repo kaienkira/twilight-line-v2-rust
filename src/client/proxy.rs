@@ -177,13 +177,15 @@ async fn proxy_udp(
     loop {
         tokio::select! {
             _ = s.readable() => {
-                let ret = udp_check_tcp_ctl_close(&mut s, copy_buf.as_mut_slice())?;
+                let ret = udp_check_tcp_ctl_close(
+                    &mut s, copy_buf.as_mut_slice())?;
                 if ret {
                     break;
                 }
             }
             _ = u.readable() => {
-                udp_copy_data_u2c(&mut u, &mut c, copy_buf.as_mut_slice()).await?;
+                udp_copy_data_u2c(
+                    &mut u, &mut c, copy_buf.as_mut_slice()).await?;
             }
         }
     }
@@ -225,9 +227,8 @@ async fn udp_copy_data_u2c(
             Ok(n) => {
                 if n == 0 {
                     return Ok(());
-                } else {
-                    c.write_all(&buf[..n]).await?;
                 }
+                c.write_all(&buf[..n]).await?;
             }
             Err(e) => {
                 if let Some(io_error) = e.downcast_ref::<std::io::Error>() {

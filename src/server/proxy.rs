@@ -120,6 +120,10 @@ async fn proxy_udp(mut c: RemoteUdpClient, mut s: TlServer) -> Result<()> {
     let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
     loop {
         tokio::select! {
+            _ = c.readable() => {
+                udp_copy_data_c2s(
+                    &mut c, &mut s, copy_buf.as_mut_slice()).await?;
+            }
             _ = s.readable() => {
                 let ret = udp_copy_data_s2c(
                     &mut s, &mut c, copy_buf.as_mut_slice()).await?;
@@ -131,6 +135,32 @@ async fn proxy_udp(mut c: RemoteUdpClient, mut s: TlServer) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn udp_copy_data_c2s(
+    c: &mut RemoteUdpClient,
+    s: &mut TlServer,
+    buf: &mut [u8],
+) -> Result<()> {
+    loop {
+        match c.try_read(buf) {
+            Ok(n) => {
+                if n == 0 {
+                    return Ok(());
+                }
+                s.write_all(&buf[..n]).await?;
+            }
+            Err(e) => {
+                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                    if io_error.kind() == std::io::ErrorKind::WouldBlock {
+                        return Ok(());
+                    }
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
+    }
 }
 
 async fn udp_copy_data_s2c(

@@ -189,22 +189,6 @@ impl Socks5UdpServer {
                 )?;
                 socks5_convert_ipv4_addr(b)
             }
-            0x03 => {
-                let b = socks5_udp_read_buf(
-                    buf,
-                    &mut buf_left_bytes,
-                    &mut buf_index,
-                    1,
-                )?;
-                let domain_length = b[0] as usize;
-                let b = socks5_udp_read_buf(
-                    buf,
-                    &mut buf_left_bytes,
-                    &mut buf_index,
-                    domain_length + 2,
-                )?;
-                socks5_convert_domain_addr(b)?
-            }
             _ => {
                 return Err(Box::new(ClientError::Socks5AddrTypeNotSupported));
             }
@@ -224,9 +208,9 @@ impl Socks5UdpServer {
             data.len()
         );
 
-        let n = 1 + dst_addr.len() + 2 + data.len();
+        let n = 2 + dst_addr.len() + 2 + data.len();
         let mut new_buf: Vec<u8> = Vec::with_capacity(n);
-        new_buf.put_u8(dst_addr.len() as u8);
+        new_buf.put_u16(dst_addr.len() as u16);
         new_buf.put(dst_addr.as_bytes());
         new_buf.put_u16(data.len() as u16);
         new_buf.put(data.as_slice());

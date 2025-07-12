@@ -6,6 +6,7 @@ use std::fmt::Formatter;
 pub(crate) enum ServerError {
     TlFakeRequestInvalid,
     TlRequestAddrInvalid,
+    TlUdpDataInvalid,
 }
 
 impl ServerError {
@@ -14,6 +15,7 @@ impl ServerError {
         match *self {
             TlFakeRequestInvalid => "tlproxy fake request invalid",
             TlRequestAddrInvalid => "tlproxy request addr invalid",
+            TlUdpDataInvalid => "tlproxy udp data invalid",
         }
     }
 }
