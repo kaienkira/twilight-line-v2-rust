@@ -176,10 +176,17 @@ async fn proxy_udp(
     let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
     loop {
         tokio::select! {
+            _ = c.readable() => {
+                let ret = udp_copy_data_c2u(
+                    &mut c, &mut u, copy_buf.as_mut_slice()).await?;
+                if ret == false {
+                    break;
+                }
+            }
             _ = s.readable() => {
-                let ret = udp_check_tcp_ctl_close(
+                let ret = udp_read_tcp_ctl(
                     &mut s, copy_buf.as_mut_slice())?;
-                if ret {
+                if ret == false {
                     break;
                 }
             }
@@ -193,21 +200,44 @@ async fn proxy_udp(
     Ok(())
 }
 
-fn udp_check_tcp_ctl_close(
-    s: &mut Socks5Server,
-    buf: &mut [u8],
-) -> Result<bool> {
+fn udp_read_tcp_ctl(s: &mut Socks5Server, buf: &mut [u8]) -> Result<bool> {
     loop {
         match s.try_read(buf) {
             Ok(n) => {
                 if n == 0 {
-                    return Ok(true);
+                    return Ok(false);
                 }
             }
             Err(e) => {
                 if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
-                        return Ok(false);
+                        return Ok(true);
+                    }
+                } else {
+                    return Err(e.into());
+                }
+            }
+        }
+    }
+}
+
+async fn udp_copy_data_c2u(
+    c: &mut TlClient,
+    u: &mut Socks5UdpServer,
+    buf: &mut [u8],
+) -> Result<bool> {
+    loop {
+        match c.try_read(buf) {
+            Ok(n) => {
+                if n == 0 {
+                    return Ok(false);
+                }
+                u.write_all(&buf[..n]).await?;
+            }
+            Err(e) => {
+                if let Some(io_error) = e.downcast_ref::<std::io::Error>() {
+                    if io_error.kind() == std::io::ErrorKind::WouldBlock {
+                        return Ok(true);
                     }
                 } else {
                     return Err(e.into());
@@ -223,7 +253,7 @@ async fn udp_copy_data_u2c(
     buf: &mut [u8],
 ) -> Result<()> {
     loop {
-        match u.try_read(buf) {
+        match u.try_read(buf).await {
             Ok(n) => {
                 if n == 0 {
                     return Ok(());

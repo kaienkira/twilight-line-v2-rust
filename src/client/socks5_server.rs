@@ -1,5 +1,6 @@
 use bytes::BufMut;
-use core::net::SocketAddr;
+use std::net::IpAddr;
+use std::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -147,12 +148,16 @@ impl Socks5Server {
 ///////////////////////////////////////////////////////////////////////////////
 pub(crate) struct Socks5UdpServer {
     conn: UdpSocket,
+    connected: bool,
 }
 
 impl Socks5UdpServer {
     pub async fn build(host: &str) -> Result<Socks5UdpServer> {
         let conn = UdpSocket::bind(host).await?;
-        Ok(Socks5UdpServer { conn: conn })
+        Ok(Socks5UdpServer {
+            conn: conn,
+            connected: false,
+        })
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr> {
@@ -164,9 +169,14 @@ impl Socks5UdpServer {
         Ok(())
     }
 
-    pub fn try_read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub async fn try_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let (mut buf_left_bytes, src_addr) = self.conn.try_recv_from(buf)?;
         let mut buf_index: usize = 0;
+
+        if self.connected == false {
+            self.conn.connect(src_addr).await?;
+            self.connected = true;
+        }
 
         let b =
             socks5_udp_read_buf(buf, &mut buf_left_bytes, &mut buf_index, 4)?;
@@ -217,6 +227,65 @@ impl Socks5UdpServer {
         buf[..n].copy_from_slice(new_buf.as_slice());
 
         Ok(n)
+    }
+
+    pub async fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        let mut buf_left_bytes = buf.len();
+        let mut buf_index: usize = 0;
+
+        // get addr_len
+        let b =
+            socks5_udp_read_buf(buf, &mut buf_left_bytes, &mut buf_index, 2)?;
+        let addr_len: usize = (((b[0] as u16) << 8) + b[1] as u16).into();
+        // get addr
+        let b = socks5_udp_read_buf(
+            buf,
+            &mut buf_left_bytes,
+            &mut buf_index,
+            addr_len,
+        )?;
+        let addr = String::from_utf8(b.to_vec())?;
+        // get data_len
+        let b =
+            socks5_udp_read_buf(buf, &mut buf_left_bytes, &mut buf_index, 2)?;
+        let data_len: usize = (((b[0] as u16) << 8) + b[1] as u16).into();
+        // get data
+        let data = socks5_udp_read_buf(
+            buf,
+            &mut buf_left_bytes,
+            &mut buf_index,
+            data_len,
+        )?;
+        // parse sock_addr
+        let sock_addr: SocketAddr = addr.parse()?;
+
+        let n = 2
+            + 1
+            + 1
+            + match sock_addr {
+                SocketAddr::V4(_) => 4,
+                SocketAddr::V6(_) => 16,
+            }
+            + data_len;
+        let mut new_buf: Vec<u8> = Vec::with_capacity(n);
+        new_buf.put_u16(0);
+        new_buf.put_u8(0x00);
+        match sock_addr.ip() {
+            IpAddr::V4(ipv4_addr) => {
+                new_buf.put_u8(0x01);
+                new_buf.put(&ipv4_addr.octets()[..]);
+            }
+            IpAddr::V6(ipv6_addr) => {
+                new_buf.put_u8(0x02);
+                new_buf.put(&ipv6_addr.octets()[..]);
+            }
+        }
+        new_buf.put_u16(sock_addr.port());
+        new_buf.put(data);
+
+        self.conn.send(new_buf.as_slice()).await?;
+
+        Ok(())
     }
 }
 
