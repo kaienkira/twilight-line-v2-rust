@@ -96,6 +96,12 @@ impl Socks5Server {
                 self.conn.read_exact(b).await?;
                 socks5_convert_ipv4_addr(b)
             }
+            0x02 => {
+                // ipv6
+                let b = &mut buf[..18];
+                self.conn.read_exact(b).await?;
+                socks5_convert_ipv6_addr(b)
+            }
             0x03 => {
                 // domain
                 let b = &mut buf[..1];
@@ -308,6 +314,41 @@ fn socks5_udp_read_buf<'a>(
 fn socks5_convert_ipv4_addr(b: &[u8]) -> String {
     let port: u16 = ((b[4] as u16) << 8) + b[5] as u16;
     format!("{}.{}.{}.{}:{}", b[0], b[1], b[2], b[3], port)
+}
+
+fn socks5_convert_ipv6_addr(b: &[u8]) -> String {
+    let port: u16 = ((b[16] as u16) << 8) + b[17] as u16;
+    format!(
+        concat!(
+            "[",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}:",
+            "{:x}{:02x}",
+            "]:{}"
+        ),
+        b[0],
+        b[1],
+        b[2],
+        b[3],
+        b[4],
+        b[5],
+        b[6],
+        b[7],
+        b[8],
+        b[9],
+        b[10],
+        b[11],
+        b[12],
+        b[13],
+        b[14],
+        b[15],
+        port
+    )
 }
 
 fn socks5_convert_domain_addr(b: &[u8]) -> Result<String> {
