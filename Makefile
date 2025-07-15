@@ -18,6 +18,9 @@ build-release:
 build-windows:
 	@cargo build --release --target x86_64-pc-windows-gnu
 
+build-android:
+	@cargo ndk -t arm64-v8a -t x86_64 build --release
+
 clean:
 	@cargo clean
 
