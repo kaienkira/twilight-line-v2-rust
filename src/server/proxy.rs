@@ -81,9 +81,8 @@ async fn tcp_copy_data_c2s(
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
                         return Ok(true);
                     }
-                } else {
-                    return Err(e.into());
                 }
+                return Err(e.into());
             }
         }
     }
@@ -107,9 +106,8 @@ async fn tcp_copy_data_s2c(
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
                         return Ok(true);
                     }
-                } else {
-                    return Err(e.into());
                 }
+                return Err(e.into());
             }
         }
     }
@@ -155,9 +153,8 @@ async fn udp_copy_data_c2s(
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
                         return Ok(());
                     }
-                } else {
-                    return Err(e.into());
                 }
+                return Err(e.into());
             }
         }
     }
@@ -181,9 +178,8 @@ async fn udp_copy_data_s2c(
                     if io_error.kind() == std::io::ErrorKind::WouldBlock {
                         return Ok(true);
                     }
-                } else {
-                    return Err(e.into());
                 }
+                return Err(e.into());
             }
         }
     }
