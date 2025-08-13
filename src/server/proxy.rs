@@ -1,5 +1,6 @@
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::time::Duration;
 
 use crate::Config;
 use crate::remote_client::RemoteClient;
@@ -18,6 +19,8 @@ pub(crate) async fn handle_proxy(config: &'static Config) -> Result<()> {
             }
             Err(e) => {
                 eprintln!("TcpListener::accept() failed: {}", e);
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                tokio::task::yield_now().await;
             }
         }
     }
