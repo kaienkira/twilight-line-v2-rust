@@ -113,6 +113,7 @@ fn parse_config() -> Config {
 fn build_tokio_runtime() -> tokio::runtime::Runtime {
     match tokio::runtime::Builder::new_multi_thread()
         .enable_io()
+        .enable_time()
         .build()
     {
         Ok(rt) => rt,
