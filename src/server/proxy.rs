@@ -14,7 +14,7 @@ pub(crate) async fn handle_proxy(config: &'static Config) -> Result<()> {
 
     loop {
         match listener.accept().await {
-            Ok((conn, addr)) => {
+            Ok((conn, _addr)) => {
                 tokio::spawn(proxy(conn, config));
             }
             Err(e) => {
