@@ -43,14 +43,14 @@ impl TlClient {
     fn create_cipher(key: &[u8]) -> (Aes256CfbEncoder, Aes256CfbDecoder) {
         let aes_key: Vec<u8> = tl_common::util::sha256_sum(key);
         let iv: Vec<u8> = vec![0; 16];
-        let encoder = Aes256CfbEncoder::new(
-            aes_key.as_slice().into(),
-            iv.as_slice().into(),
-        );
-        let decoder = Aes256CfbDecoder::new(
-            aes_key.as_slice().into(),
-            iv.as_slice().into(),
-        );
+        let encoder = Aes256CfbEncoder::new_from_slices(
+            aes_key.as_slice(),
+            iv.as_slice(),
+        ).unwrap();
+        let decoder = Aes256CfbDecoder::new_from_slices(
+            aes_key.as_slice(),
+            iv.as_slice(),
+        ).unwrap();
 
         (encoder, decoder)
     }
