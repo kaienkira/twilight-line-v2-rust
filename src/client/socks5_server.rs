@@ -289,7 +289,7 @@ impl Socks5UdpServer {
                 new_buf.put(&ipv4_addr.octets()[..]);
             }
             IpAddr::V6(ipv6_addr) => {
-                new_buf.put_u8(0x02);
+                new_buf.put_u8(0x04);
                 new_buf.put(&ipv6_addr.octets()[..]);
             }
         }
