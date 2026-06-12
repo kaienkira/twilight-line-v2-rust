@@ -59,6 +59,9 @@ impl RemoteUdpClient {
         let addr: String = src_addr.to_string();
 
         let n = 2 + addr.len() + 2 + data_len;
+        if n > buf.len() {
+            return Err(Box::new(ServerError::TlUdpDataInvalid));
+        }
         let mut new_buf: Vec<u8> = Vec::with_capacity(n);
         new_buf.put_u16(addr.len() as u16);
         new_buf.put(addr.as_bytes());
