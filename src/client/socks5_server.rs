@@ -232,6 +232,9 @@ impl Socks5UdpServer {
         );
 
         let n = 2 + dst_addr.len() + 2 + data.len();
+        if n > buf.len() {
+            return Err(Box::new(ClientError::Socks5UdpDataInvalid));
+        }
         let mut new_buf: Vec<u8> = Vec::with_capacity(n);
         new_buf.put_u16(dst_addr.len() as u16);
         new_buf.put(dst_addr.as_bytes());

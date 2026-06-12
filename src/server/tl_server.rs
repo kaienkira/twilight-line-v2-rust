@@ -93,7 +93,7 @@ impl TlServer {
 
     pub async fn accept(&mut self) -> Result<RemoteClient> {
         // read fake request
-        {
+        if self.fake_request.len() > 0 {
             let mut buf: Vec<u8> = vec![0; self.fake_request.len()];
             let mut l: usize = 0;
             loop {
