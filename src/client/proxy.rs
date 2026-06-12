@@ -171,7 +171,7 @@ async fn proxy_udp(
 
     s.notify_udp_associate_success(udp_port).await?;
 
-    let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
+    let mut copy_buf: Vec<u8> = vec![0; 64 * 1024];
     loop {
         tokio::select! {
             _ = c.readable() => {

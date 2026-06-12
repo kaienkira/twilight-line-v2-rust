@@ -118,7 +118,7 @@ async fn tcp_copy_data_s2c(
 
 ///////////////////////////////////////////////////////////////////////////////
 async fn proxy_udp(mut c: RemoteUdpClient, mut s: TlServer) -> Result<()> {
-    let mut copy_buf: Vec<u8> = vec![0; 32 * 1024];
+    let mut copy_buf: Vec<u8> = vec![0; 64 * 1024];
     loop {
         tokio::select! {
             _ = c.readable() => {

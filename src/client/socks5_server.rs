@@ -69,7 +69,7 @@ impl Socks5Server {
     }
 
     pub async fn receive_request(&mut self) -> Result<Socks5Request> {
-        let mut buf: Vec<u8> = vec![0; 256];
+        let mut buf: Vec<u8> = vec![0; 512];
 
         let b = &mut buf[..4];
         self.conn.read_exact(b).await?;
