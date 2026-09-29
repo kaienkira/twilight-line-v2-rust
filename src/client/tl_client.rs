@@ -124,7 +124,7 @@ impl TlClient {
             let b = &mut buf[..1];
             self.read_exact(b).await?;
             let comm_key_len = b[0] as usize;
-            if comm_key_len < 32 || comm_key_len > 128 {
+            if comm_key_len < 32 || comm_key_len >= 128 {
                 return Err(Box::new(ClientError::TlCommKeyInvalid));
             }
 
