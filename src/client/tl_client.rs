@@ -7,6 +7,8 @@ use tokio::net::TcpStream;
 use tl_common::Result;
 use tl_common::TlConnectionType;
 
+use crate::client_error::ClientError;
+
 type Aes256CfbEncoder = cfb_mode::BufEncryptor<aes::Aes256>;
 type Aes256CfbDecoder = cfb_mode::BufDecryptor<aes::Aes256>;
 
@@ -122,6 +124,9 @@ impl TlClient {
             let b = &mut buf[..1];
             self.read_exact(b).await?;
             let comm_key_len = b[0] as usize;
+            if comm_key_len < 32 || comm_key_len > 128 {
+                return Err(Box::new(ClientError::TlCommKeyInvalid));
+            }
 
             let b = &mut buf[..comm_key_len];
             self.read_exact(b).await?;

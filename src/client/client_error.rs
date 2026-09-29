@@ -8,6 +8,7 @@ pub(crate) enum ClientError {
     Socks5CmdNotSupported,
     Socks5AddrTypeNotSupported,
     Socks5UdpDataInvalid,
+    TlCommKeyInvalid,
 }
 
 impl ClientError {
@@ -18,6 +19,7 @@ impl ClientError {
             Socks5CmdNotSupported => "socks5 cmd not supported",
             Socks5AddrTypeNotSupported => "socks5 addr type not supported",
             Socks5UdpDataInvalid => "socks5 udp data invalid",
+            TlCommKeyInvalid => "tlproxy communication key invalid",
         }
     }
 }
