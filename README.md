@@ -7,11 +7,11 @@ another tunnel proxy
 
 ```
 pacman -S rustup mingw-w64-gcc
+rustup toolchain install stable
 rustup target add \
     x86_64-pc-windows-gnu \
     x86_64-unknown-linux-gnu \
     aarch64-linux-android \
     x86_64-linux-android
 cargo install cargo-ndk
-cargo install cargo-edit
 ```
