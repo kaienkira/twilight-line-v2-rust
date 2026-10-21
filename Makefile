@@ -3,6 +3,7 @@ default \
 build-debug \
 build-release \
 build-windows \
+build-android \
 clean \
 test \
 fmt
